@@ -205,6 +205,9 @@
     <div class="header-panel">
         <div class="score-container">Skor: <span id="score">0</span></div>
         <div class="color-settings">
+            <div class="color-picker" title="Musik BGM On/Off" id="music-toggle" style="cursor: pointer; user-select: none;">
+                🔊
+            </div>
             <div class="color-picker" title="Ubah Warna Ular">
                 🐍 <input type="color" id="snake-color" value="#22c55e">
             </div>
@@ -259,6 +262,100 @@
         let snakeColor = '#22c55e';
         let foodColor = '#ef4444';
 
+        // --- Sistem Suara (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Setup BGM 8-bit (Chiptune)
+        let isMusicEnabled = true;
+        let bgmInterval;
+        let currentNote = 0;
+        // Nada dalam frekuensi (A minor scale yang repetitif khas game jadul)
+        const melodyNotes = [
+            220, 246, 261, 246, 220, 246, 261, 293,
+            329, 293, 261, 293, 261, 246, 220, 0
+        ];
+        const NOTE_LENGTH = 150; // milidetik per nada
+
+        document.getElementById('music-toggle').addEventListener('click', function() {
+            isMusicEnabled = !isMusicEnabled;
+            this.innerText = isMusicEnabled ? '🔊' : '🔇';
+            if (!isMusicEnabled) {
+                stopBGM();
+            } else if (document.getElementById('start-screen').style.display === 'none' && document.getElementById('game-over-screen').style.display === 'none') {
+                startBGM(); // Lanjutkan musik jika sedang di tengah permainan
+            }
+        });
+
+        function startBGM() {
+            if (!isMusicEnabled || bgmInterval) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            currentNote = 0;
+            bgmInterval = setInterval(playNextNote, NOTE_LENGTH);
+        }
+
+        function stopBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        function playNextNote() {
+            const freq = melodyNotes[currentNote];
+            if (freq > 0) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square'; // Gelombang kotak menghasilkan suara 8-bit khas Nokia/Gameboy
+                osc.frequency.value = freq;
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                // Volume diset sangat pelan (0.02) agar tidak menutupi efek suara utama
+                gain.gain.setValueAtTime(0.02, audioCtx.currentTime); 
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (NOTE_LENGTH/1000) - 0.01);
+                
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + (NOTE_LENGTH/1000));
+            }
+            currentNote = (currentNote + 1) % melodyNotes.length;
+        }
+
+        function playSound(type) {
+            // Lanjutkan konteks audio jika tertunda oleh kebijakan browser
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'eat') {
+                // Suara saat makan (Ting! - Frekuensi naik)
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'die') {
+                // Suara Game Over (Tuut... - Frekuensi turun panjang)
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.6);
+                
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.6);
+            }
+        }
+
         // --- Fungsi Mengukur Layar (Responsif) ---
         function resizeCanvas() {
             const isMobile = window.innerWidth <= 800;
@@ -299,11 +396,13 @@
         // --- Logika Utama Game ---
 
         function startGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume(); // Izinkan audio saat tombol di-klik
             document.getElementById('start-screen').style.display = 'none';
             resetGame();
         }
 
         function resetGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             // Menghitung titik tengah layar dinamis
             const startX = Math.floor((canvas.width / 2) / gridSize) * gridSize;
             const startY = Math.floor((canvas.height / 2) / gridSize) * gridSize;
@@ -326,12 +425,15 @@
             
             generateFood();
             clearTimeout(gameLoopTimeout);
+            startBGM(); // Mulai jalankan BGM
             mainLoop();
         }
 
         // Fungsi putaran (loop) game yang berjalan terus menerus
         function mainLoop() {
             if (hasGameEnded()) {
+                stopBGM(); // Hentikan BGM saat game over
+                playSound('die'); // Mainkan suara gagal
                 document.getElementById('game-over-screen').style.display = 'flex';
                 document.getElementById('final-score').innerText = score;
                 return;
@@ -412,6 +514,8 @@
             }
 
             if (ateFoodIndex !== -1) {
+                playSound('eat'); // Mainkan suara saat makan apel
+
                 score += 10;
                 document.getElementById('score').innerText = score;
                 
