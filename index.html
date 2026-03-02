@@ -148,9 +148,9 @@
         .btn:hover { background-color: #2563eb; }
         .btn:active { transform: scale(0.95); }
 
-        /* Tombol Kontrol untuk HP */
+        /* Tombol Kontrol Layar */
         #mobile-controls {
-            display: none;
+            display: grid; /* Diubah agar tombol selalu tampil di semua layar */
             grid-template-columns: 60px 60px 60px;
             grid-template-rows: 60px 60px;
             gap: 12px;
@@ -236,12 +236,12 @@
         </div>
     </div>
 
-    <!-- Tombol Kontrol Layar (Untuk Mobile) -->
+    <!-- Tombol Kontrol Layar -->
     <div id="mobile-controls">
-        <button class="d-pad-btn" id="btn-up" onclick="setDirection('UP')">▲</button>
-        <button class="d-pad-btn" id="btn-left" onclick="setDirection('LEFT')">◀</button>
-        <button class="d-pad-btn" id="btn-down" onclick="setDirection('DOWN')">▼</button>
-        <button class="d-pad-btn" id="btn-right" onclick="setDirection('RIGHT')">▶</button>
+        <button class="d-pad-btn" id="btn-up">▲</button>
+        <button class="d-pad-btn" id="btn-left">◀</button>
+        <button class="d-pad-btn" id="btn-down">▼</button>
+        <button class="d-pad-btn" id="btn-right">▶</button>
     </div>
 
     <script>
@@ -624,10 +624,26 @@
             }
         });
 
-        // Cegah zoom/scroll ketika menekan tombol kontrol di HP
-        document.getElementById('mobile-controls').addEventListener('touchstart', function(e) {
-            e.preventDefault();
-        }, {passive: false});
+        // Event listener untuk tombol arah di layar (Bisa di-klik mouse / disentuh jari)
+        const controlButtons = {
+            'btn-up': 'UP',
+            'btn-left': 'LEFT',
+            'btn-down': 'DOWN',
+            'btn-right': 'RIGHT'
+        };
+
+        for (let id in controlButtons) {
+            let btn = document.getElementById(id);
+            // Menggunakan 'pointerdown' agar bereaksi instan baik saat diklik mouse atau disentuh layar
+            btn.addEventListener('pointerdown', function(e) {
+                e.preventDefault(); // Cegah delay klik atau layar bergeser (scroll)
+                setDirection(controlButtons[id]);
+            });
+            // Mencegah menu klik kanan/pop-up muncul saat tombol ditahan lama
+            btn.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+        }
 
         // --- Sistem Kontrol Usap (Swipe) untuk Layar Sentuh ---
         let touchStartX = 0;
