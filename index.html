@@ -358,9 +358,9 @@
 
         // --- Fungsi Mengukur Layar (Responsif) ---
         function resizeCanvas() {
-            const isMobile = window.innerWidth <= 800;
-            const headerSpace = 160; // Ruang untuk judul dan skor
-            const controlSpace = isMobile ? 220 : 40; // Ruang untuk tombol d-pad di HP
+            // Karena tombol d-pad sekarang selalu tampil, kita tetapkan ruang pastinya untuk semua layar
+            const headerSpace = 130; // Ruang untuk judul dan skor (di atas)
+            const controlSpace = 180; // Ruang untuk tombol panah (di bawah)
             
             let availWidth = window.innerWidth * 0.95;
             let availHeight = window.innerHeight - headerSpace - controlSpace;
